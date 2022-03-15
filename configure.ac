@@ -1557,6 +1557,15 @@ LIBC_TRY_TEST_CC_OPTION([for -ffloat-store],
 LIBC_CONFIG_VAR([test-config-cflags-float-store],
 		[$libc_cv_test_cc_float_store])
 
+dnl Determine if compiler support -frounding-math
+AC_CACHE_CHECK([for compiler option -frounding-math], libc_cv_cc_rounding_math, [dnl
+LIBC_TRY_CC_OPTION([-Werror -frounding-math],
+                   [libc_cv_cc_rounding_math=-frounding-math],
+                   [libc_cv_cc_rounding_math=])
+])
+LIBC_CONFIG_VAR([config-cflags-frounding-math],
+                [$libc_cv_cc_rounding_math])
+
 conftest_code="
 void
 __attribute__ ((__optimize__ (\"-fno-tree-loop-distribute-patterns\")))
