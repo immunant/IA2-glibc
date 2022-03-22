@@ -1898,6 +1898,10 @@ add_prefixlist (struct prefixlist **listp, size_t *lenp, bool *nullbitsp,
   if (cp != NULL)
     *cp++ = '\0';
   *pos = cp;
+  /* clang warns that endp is used uninitialized whenever '||' condition
+     is true, however it will be evaluated after strtoul call.  */
+  DIAG_PUSH_NEEDS_COMMENT_CLANG;
+  DIAG_IGNORE_NEEDS_COMMENT_CLANG (13, "-Wsometimes-uninitialized");
   if (inet_pton (AF_INET6, val1, &prefix)
       && (cp == NULL || valid_decimal_value (cp, &bits))
       && bits <= 128
@@ -1916,6 +1920,7 @@ add_prefixlist (struct prefixlist **listp, size_t *lenp, bool *nullbitsp,
       ++*lenp;
       *nullbitsp |= bits == 0;
     }
+  DIAG_POP_NEEDS_COMMENT_CLANG;
   return true;
 }
 
@@ -2053,6 +2058,11 @@ gaiconf_init (void)
 	      if (inet_pton (AF_INET6, val1, &prefix))
 		{
 		  bits = 128;
+		  /* clang warns that endp is used uninitialized whenever '||'
+		     condition is true, however it will be evaluated after
+		     strtoul call.  */
+		  DIAG_PUSH_NEEDS_COMMENT_CLANG;
+		  DIAG_IGNORE_NEEDS_COMMENT_CLANG (13, "-Wsometimes-uninitialized");
 		  if (IN6_IS_ADDR_V4MAPPED (&prefix)
 		      && (cp == NULL || valid_decimal_value (cp, &bits))
 		      && bits >= 96
@@ -2069,6 +2079,7 @@ gaiconf_init (void)
 			  goto no_file;
 			}
 		    }
+		  DIAG_POP_NEEDS_COMMENT_CLANG;
 		}
 	      else if (inet_pton (AF_INET, val1, &prefix.s6_addr32[3])
 		       && (cp == NULL || valid_decimal_value (cp, &bits))
