@@ -541,7 +541,7 @@ lib%.so: lib%_pic.a $(+preinit) $(+postinit) $(link-libc-deps)
 	$(call after-link,$@)
 
 define build-shlib-helper
-$(LINK.o) -shared -static-libgcc -Wl,-O1 $(sysdep-LDFLAGS) \
+$(LINK.o) -shared --rtlib=compiler-rt -B$(LLVM_BUILD_DIR)/build-rtlibs/compiler-rt/lib/linux -Wl,-O1 $(sysdep-LDFLAGS) \
 	  $(if $($(@F)-no-z-defs)$(no-z-defs),,-Wl,-z,defs) $(rtld-LDFLAGS) \
 	  $(if $($(@F)-no-dt-relr),$(no-dt-relr-ldflag),$(dt-relr-ldflag)) \
 	  $(extra-B-$(@F:lib%.so=%).so) -B$(csu-objpfx) \
@@ -557,7 +557,7 @@ $(build-shlib-helper) -o $@ \
 endef
 
 define build-module-helper
-$(LINK.o) -shared -static-libgcc $(sysdep-LDFLAGS) $(rtld-LDFLAGS) \
+$(LINK.o) -shared --rtlib=compiler-rt -B$(LLVM_BUILD_DIR)/build-rtlibs/compiler-rt/lib/linux $(sysdep-LDFLAGS) $(rtld-LDFLAGS) \
 	  $(if $($(@F)-no-z-defs)$(no-z-defs),,-Wl,-z,defs) \
 	  $(if $($(@F)-no-dt-relr),$(no-dt-relr-ldflag),$(dt-relr-ldflag)) \
 	  -B$(csu-objpfx) $(load-map-file) \

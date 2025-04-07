@@ -711,19 +711,19 @@ else
 endif
 libgcc_eh := -Wl,--as-needed -lgcc_s $(libunwind) -Wl,--no-as-needed
 gnulib-arch =
-gnulib = -lgcc $(gnulib-arch)
-gnulib-tests := -lgcc $(libgcc_eh)
+gnulib = --rtlib=compiler-rt $(LLVM_BUILD_DIR)/build/lib/clang/19/lib/aarch64-unknown-linux-gnu/libclang_rt.builtins.a $(gnulib-arch)
+gnulib-tests := $(libgcc_eh)
 static-gnulib-arch =
 # By default, elf/static-stubs.o, instead of -lgcc_eh, is used to
 # statically link programs.  When --disable-shared is used, we use
 # -lgcc_eh since elf/static-stubs.o isn't sufficient.
 ifeq (yes,$(build-shared))
-static-gnulib = -lgcc $(static-gnulib-arch)
+static-gnulib = --rtlib=compiler-rt $(LLVM_BUILD_DIR)/build/lib/clang/19/lib/aarch64-unknown-linux-gnu/libclang_rt.builtins.a $(static-gnulib-arch)
 else
-static-gnulib = -lgcc -lgcc_eh $(static-gnulib-arch)
+static-gnulib = --rtlib=compiler-rt $(LLVM_BUILD_DIR)/build/lib/clang/19/lib/aarch64-unknown-linux-gnu/libclang_rt.builtins.a -lgcc_eh $(static-gnulib-arch)
 endif
-static-gnulib-tests := -lgcc -lgcc_eh $(libunwind)
-libc.so-gnulib := -lgcc
+static-gnulib-tests := -lgcc_eh $(libunwind)
+libc.so-gnulib := --rtlib=compiler-rt $(LLVM_BUILD_DIR)/build/lib/clang/19/lib/aarch64-unknown-linux-gnu/libclang_rt.builtins.a
 endif
 +preinit = $(addprefix $(csu-objpfx),crti.o)
 +postinit = $(addprefix $(csu-objpfx),crtn.o)
