@@ -44,6 +44,10 @@
 
 
 ENTRY (memcmp)
+	extr src1, src1, x18, #56
+	extr src1, src1, src1, #8
+	extr src2, src2, x18, #56
+	extr src2, src2, src2, #8
 	cmp	limit, 16
 	b.lo	L(less16)
 	ldp	data1, data3, [src1]

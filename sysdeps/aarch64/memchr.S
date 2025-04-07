@@ -57,6 +57,8 @@
    exactly which byte matched.  */
 
 ENTRY (MEMCHR)
+	extr srcin, srcin, x18, #56
+	extr srcin, srcin, srcin, #8
 	bic	src, srcin, 15
 	cbz	cntin, L(nomatch)
 	ld1	{vdata.16b}, [src]

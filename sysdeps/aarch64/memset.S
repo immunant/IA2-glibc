@@ -39,6 +39,8 @@
 #define dstend2	x5
 
 ENTRY (MEMSET)
+	extr dstin, dstin, x18, #56
+	extr dstin, dstin, dstin, #8
 	dup	v0.16B, valw
 	cmp	count, 16
 	b.lo	L(set_small)

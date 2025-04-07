@@ -70,6 +70,10 @@
    from the end.  */
 
 ENTRY (MEMCPY)
+	extr dstin, dstin, x18, #56
+	extr dstin, dstin, dstin, #8
+	extr src, src, x18, #56
+	extr src, src, src, #8
 	add	srcend, src, count
 	add	dstend, dstin, count
 	cmp	count, 128
