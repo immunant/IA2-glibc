@@ -27,6 +27,33 @@
 #include <ldsodefs.h>
 #include <malloc/malloc-internal.h>
 #include <setvmaname.h>
+#if IA2_LDSO_MPK
+#ifndef IA2_LDSO_PKEY
+#error "IA2_LDSO_PKEY must be defined when IA2_LDSO_MPK is enabled"
+#endif
+#include <bits/mman-shared.h>
+#include <sysdep.h>
+#include <sys/prctl.h>
+
+/* Marker name for loader heap (leading space matches __set_vma_name format) */
+#define IA2_LDSO_HEAP_NAME " ia2-loader-heap"
+
+/* Whether the loader pkey was successfully allocated. */
+static int ia2_ldso_pkey_ok;
+
+/* Allocate the loader pkey on first use. The loader runs before any user
+   code, so we're guaranteed to get pkey 1 on first allocation. */
+static inline int
+ia2_ensure_ldso_pkey (void)
+{
+  if (!ia2_ldso_pkey_ok)
+    {
+      long int ret = INTERNAL_SYSCALL_CALL (pkey_alloc, 0, 0);
+      ia2_ldso_pkey_ok = (!INTERNAL_SYSCALL_ERROR_P (ret) && ret == IA2_LDSO_PKEY);
+    }
+  return ia2_ldso_pkey_ok;
+}
+#endif
 
 static void *alloc_ptr, *alloc_end, *alloc_last_block;
 
@@ -61,7 +88,24 @@ __minimal_malloc (size_t n)
 		     MAP_ANON|MAP_PRIVATE, -1, 0);
       if (page == MAP_FAILED)
 	return NULL;
+#if IA2_LDSO_MPK
+      if (ia2_ensure_ldso_pkey ())
+        {
+          if (__pkey_mprotect (page, nup, PROT_READ | PROT_WRITE, IA2_LDSO_PKEY) != 0)
+            {
+              __munmap (page, nup);
+              return NULL;
+            }
+          /* Set VMA name directly because __set_vma_name checks the
+             glibc.mem.decorate_maps tunable which defaults to off */
+          INTERNAL_SYSCALL_CALL (prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+                                 page, nup, IA2_LDSO_HEAP_NAME);
+        }
+      else
+        __set_vma_name (page, nup, " glibc: loader malloc");
+#else
       __set_vma_name (page, nup, " glibc: loader malloc");
+#endif
       if (page != alloc_end)
 	alloc_ptr = page;
       alloc_end = page + nup;
