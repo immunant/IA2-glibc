@@ -27,7 +27,7 @@
 #include <ldsodefs.h>
 #include <malloc/malloc-internal.h>
 #include <setvmaname.h>
-#if IA2_LDSO_MPK
+#if defined(__x86_64__) && defined(IA2_LDSO_MPK) && IA2_LDSO_MPK
 #ifndef IA2_LDSO_PKEY
 #error "IA2_LDSO_PKEY must be defined when IA2_LDSO_MPK is enabled"
 #endif
@@ -88,7 +88,7 @@ __minimal_malloc (size_t n)
 		     MAP_ANON|MAP_PRIVATE, -1, 0);
       if (page == MAP_FAILED)
 	return NULL;
-#if IA2_LDSO_MPK
+#if defined(__x86_64__) && defined(IA2_LDSO_MPK) && IA2_LDSO_MPK
       if (ia2_ensure_ldso_pkey ())
         {
           if (__pkey_mprotect (page, nup, PROT_READ | PROT_WRITE, IA2_LDSO_PKEY) != 0)
