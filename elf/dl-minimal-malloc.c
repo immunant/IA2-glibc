@@ -34,9 +34,7 @@
 #include <bits/mman-shared.h>
 #include <sysdep.h>
 #include <sys/prctl.h>
-
-/* Marker name for loader heap (leading space matches __set_vma_name format) */
-#define IA2_LDSO_HEAP_NAME " ia2-loader-heap"
+#include "ia2_ldso_heap.h"
 
 /* Whether the loader pkey was successfully allocated. */
 static int ia2_ldso_pkey_ok;
