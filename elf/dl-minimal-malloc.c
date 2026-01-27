@@ -27,10 +27,13 @@
 #include <ldsodefs.h>
 #include <malloc/malloc-internal.h>
 #include <setvmaname.h>
-#if defined(__x86_64__) && defined(IA2_LDSO_MPK) && IA2_LDSO_MPK
-#ifndef IA2_LDSO_PKEY
-#error "IA2_LDSO_PKEY must be defined when IA2_LDSO_MPK is enabled"
-#endif
+/*
+ * IA2_LDSO_PKEY: When defined to a positive value, enables MPK protection
+ * for the loader's minimal malloc heap using that pkey. The loader allocates
+ * this pkey before any application code runs. The IA2 runtime must be built
+ * with the same IA2_LDSO_PKEY value so it knows to skip allocating that pkey.
+ */
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
 #include <bits/mman-shared.h>
 #include <sysdep.h>
 #include <sys/prctl.h>
@@ -86,7 +89,7 @@ __minimal_malloc (size_t n)
 		     MAP_ANON|MAP_PRIVATE, -1, 0);
       if (page == MAP_FAILED)
 	return NULL;
-#if defined(__x86_64__) && defined(IA2_LDSO_MPK) && IA2_LDSO_MPK
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
       if (ia2_ensure_ldso_pkey ())
         {
           if (__pkey_mprotect (page, nup, PROT_READ | PROT_WRITE, IA2_LDSO_PKEY) != 0)
