@@ -27,6 +27,34 @@
 #include <ldsodefs.h>
 #include <malloc/malloc-internal.h>
 #include <setvmaname.h>
+/*
+ * IA2_LDSO_PKEY: When defined to a positive value, enables MPK protection
+ * for the loader's minimal malloc heap using that pkey. The loader allocates
+ * this pkey before any application code runs. The IA2 runtime must be built
+ * with the same IA2_LDSO_PKEY value so it knows to skip allocating that pkey.
+ */
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
+#include <bits/mman-shared.h>
+#include <sysdep.h>
+#include <sys/prctl.h>
+#include "ia2_ldso_heap.h"
+
+/* Whether the loader pkey was successfully allocated. */
+static int ia2_ldso_pkey_ok;
+
+/* Allocate the loader pkey on first use. The loader runs before any user
+   code, so we're guaranteed to get pkey 1 on first allocation. */
+static inline int
+ia2_ensure_ldso_pkey (void)
+{
+  if (!ia2_ldso_pkey_ok)
+    {
+      long int ret = INTERNAL_SYSCALL_CALL (pkey_alloc, 0, 0);
+      ia2_ldso_pkey_ok = (!INTERNAL_SYSCALL_ERROR_P (ret) && ret == IA2_LDSO_PKEY);
+    }
+  return ia2_ldso_pkey_ok;
+}
+#endif
 
 static void *alloc_ptr, *alloc_end, *alloc_last_block;
 
@@ -61,7 +89,24 @@ __minimal_malloc (size_t n)
 		     MAP_ANON|MAP_PRIVATE, -1, 0);
       if (page == MAP_FAILED)
 	return NULL;
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
+      if (ia2_ensure_ldso_pkey ())
+        {
+          if (__pkey_mprotect (page, nup, PROT_READ | PROT_WRITE, IA2_LDSO_PKEY) != 0)
+            {
+              __munmap (page, nup);
+              return NULL;
+            }
+          /* Set VMA name directly because __set_vma_name checks the
+             glibc.mem.decorate_maps tunable which defaults to off */
+          INTERNAL_SYSCALL_CALL (prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+                                 page, nup, IA2_LDSO_HEAP_NAME);
+        }
+      else
+        __set_vma_name (page, nup, " glibc: loader malloc");
+#else
       __set_vma_name (page, nup, " glibc: loader malloc");
+#endif
       if (page != alloc_end)
 	alloc_ptr = page;
       alloc_end = page + nup;
