@@ -25,6 +25,9 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/param.h>
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
+# include <bits/mman-shared.h>
+#endif
 #include <sys/stat.h>
 #include <ldsodefs.h>
 #include <_itoa.h>
@@ -729,6 +732,48 @@ match_version (const char *string, struct link_map *map)
 
 bool __rtld_tls_init_tp_called;
 
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
+/* IA2 single-thread dav1d decode needs the initial thread's TCB-adjacent
+   static TLS window and DTV page to remain shared.  Retagging them here keeps
+   the policy in the loader that allocated the memory, instead of depending on
+   a later runtime-wide IA2 startup retag.  */
+static void
+ia2_share_initial_tls_pages (void *tcbp)
+{
+  const uintptr_t pagesize = GLRO (dl_pagesize);
+  const uintptr_t tcb_page = (uintptr_t) tcbp & -pagesize;
+  const uintptr_t tls_low_page
+    = ((uintptr_t) tcbp - (GLRO (dl_tls_static_size) - TLS_TCB_SIZE))
+      & -pagesize;
+
+  /* Share exactly the static TLS pages that back the initial thread's block
+     plus the TCB page itself.  The block can span multiple minimal-malloc
+     VMAs, so retag page-by-page instead of assuming a single contiguous
+     pkey_mprotect over the whole interval will succeed.  */
+  for (uintptr_t page = tcb_page; page >= tls_low_page; page -= pagesize)
+    {
+      if (__pkey_mprotect ((void *) page, pagesize,
+                           PROT_READ | PROT_WRITE, 0) != 0)
+        {
+          if (errno == ENOMEM)
+            break;
+          _dl_fatal_printf ("cannot retag initial-thread TLS neighborhood\n");
+        }
+
+      if (page < pagesize)
+        break;
+    }
+
+  uintptr_t dtv_page = (uintptr_t) GET_DTV (tcbp) & -pagesize;
+  if (dtv_page < tls_low_page || dtv_page > tcb_page)
+    {
+      if (__pkey_mprotect ((void *) dtv_page, pagesize,
+                           PROT_READ | PROT_WRITE, 0) != 0)
+        _dl_fatal_printf ("cannot retag initial-thread DTV page\n");
+    }
+}
+#endif
+
 static void *
 init_tls (size_t naudit)
 {
@@ -774,6 +819,10 @@ cannot allocate TLS data structures for initial thread\n");
   /* Store for detection of the special case by __tls_get_addr
      so it knows not to pass this dtv to the normal realloc.  */
   GL(dl_initial_dtv) = GET_DTV (tcbp);
+
+#if defined(__x86_64__) && defined(IA2_LDSO_PKEY) && IA2_LDSO_PKEY > 0
+  ia2_share_initial_tls_pages (tcbp);
+#endif
 
   /* And finally install it for the main thread.  */
   call_tls_init_tp (tcbp);
